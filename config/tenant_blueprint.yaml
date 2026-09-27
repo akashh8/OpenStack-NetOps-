@@ -1,0 +1,86 @@
+tenant:
+  name: "finance-production"
+  description: "Finance Department Core Infrastructure"
+
+networks:
+  - name: "finance-app-net"
+    admin_state_up: true
+    shared: false
+    subnets:
+      - name: "finance-app-subnet"
+        cidr: "192.168.10.0/24"
+        ip_version: 4
+        enable_dhcp: true
+        dns_nameservers:
+          - "8.8.8.8"
+          - "1.1.1.1"
+        gateway_ip: "192.168.10.1"
+
+  - name: "finance-db-net"
+    admin_state_up: true
+    shared: false
+    subnets:
+      - name: "finance-db-subnet"
+        cidr: "192.168.20.0/24"
+        ip_version: 4
+        enable_dhcp: true
+        dns_nameservers:
+          - "8.8.8.8"
+        gateway_ip: "192.168.20.1"
+
+routers:
+  - name: "finance-edge-router"
+    admin_state_up: true
+    external_gateway_network: "public"
+    interfaces:
+      - subnet_name: "finance-app-subnet"
+      - subnet_name: "finance-db-subnet"
+
+security_groups:
+  - name: "app-secgroup"
+    description: "Security Group for Application Servers"
+    rules:
+      - direction: "ingress"
+        protocol: "tcp"
+        port_range_min: 80
+        port_range_max: 80
+        remote_ip_prefix: "0.0.0.0/0"
+        description: "Allow HTTP public traffic"
+      - direction: "ingress"
+        protocol: "tcp"
+        port_range_min: 443
+        port_range_max: 443
+        remote_ip_prefix: "0.0.0.0/0"
+        description: "Allow HTTPS public traffic"
+      - direction: "ingress"
+        protocol: "tcp"
+        port_range_min: 22
+        port_range_max: 22
+        remote_ip_prefix: "10.0.0.0/8"
+        description: "Restrict SSH to internal bastion subnet"
+      - direction: "egress"
+        protocol: "tcp"
+        port_range_min: 1
+        port_range_max: 65535
+        remote_ip_prefix: "0.0.0.0/0"
+        description: "Allow all outbound TCP traffic"
+
+  - name: "db-secgroup"
+    description: "Security Group for Database Servers"
+    rules:
+      - direction: "ingress"
+        protocol: "tcp"
+        port_range_min: 5432
+        port_range_max: 5432
+        remote_ip_prefix: "192.168.10.0/24"
+        description: "Allow PostgreSQL ingress only from app subnet"
+      - direction: "egress"
+        protocol: "tcp"
+        port_range_min: 1
+        port_range_max: 65535
+        remote_ip_prefix: "0.0.0.0/0"
+        description: "Allow all outbound TCP traffic"
+
+floating_ips:
+  - network_name: "public"
+    description: "Floating IP for ingress load balancer"
